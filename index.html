@@ -1298,7 +1298,9 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
 });
 
 function finalizeImage(){
-  sizeCanvases();
+  // 주의: 여기서 sizeCanvases()를 다시 호출하면 안 됨 - canvas의 width/height
+  // 속성을 대입하면 값이 같아도 내용이 즉시 지워져서(스펙 동작) 사진/펜 그림이
+  // 사라지는 버그가 있었음
   const w = photoCanvas.width, h = photoCanvas.height;
   const out = document.createElement('canvas');
   out.width = w; out.height = h;
