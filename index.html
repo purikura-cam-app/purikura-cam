@@ -1216,24 +1216,6 @@ function runCountdown(n){
   });
 }
 
-function addFilmGrain(ctx, w, h, opacity){
-  const noiseCanvas = document.createElement('canvas');
-  noiseCanvas.width = w; noiseCanvas.height = h;
-  const nctx = noiseCanvas.getContext('2d');
-  const imgData = nctx.createImageData(w,h);
-  const data = imgData.data;
-  for(let i=0;i<data.length;i+=4){
-    const v = Math.random()*255;
-    data[i]=v; data[i+1]=v; data[i+2]=v; data[i+3]=255;
-  }
-  nctx.putImageData(imgData,0,0);
-  ctx.save();
-  ctx.globalAlpha = opacity;
-  ctx.globalCompositeOperation = 'overlay';
-  ctx.drawImage(noiseCanvas,0,0);
-  ctx.restore();
-}
-
 function takePhoto(){
   if(!video.videoWidth || !video.videoHeight){
     // 카메라 스트림이 아직 첫 프레임을 받지 못한 상태(특히 일부 모바일
@@ -1246,11 +1228,15 @@ function takePhoto(){
   const w = photoCanvas.width, h = photoCanvas.height;
 
   // draw video frame (account for mirror + cover fit)
+  // 미리보기 화면(video CSS filter)과 동일한 보정만 적용 - 별도의
+  // 글로우/틴트/그레인 합성 패스는 모두 제거해서 미리보기와 결과물이
+  // 다르게 보이지 않도록 함
   ctx.save();
   if(currentFacing==='user'){
     ctx.translate(w,0);
     ctx.scale(-1,1);
   }
+  ctx.filter = 'brightness(1.3) contrast(0.86) saturate(1.0) blur(0.6px)';
   // cover-fit calculation
   const vw = video.videoWidth, vh = video.videoHeight;
   const scale = Math.max(w/vw, h/vh);
@@ -1258,48 +1244,6 @@ function takePhoto(){
   const dx = (w-dw)/2, dy=(h-dh)/2;
   ctx.drawImage(video, dx, dy, dw, dh);
   ctx.restore();
-
-  // 원본 프레임을 따로 떠둔다 - 아래 글로우 패스들이 매번 이 원본을 기준으로
-  // 블렌딩해야 하는데, 실수로 photoCanvas(자기 자신, 이미 블렌딩된 결과)를
-  // 계속 다시 읽어버리면 밝기가 패스마다 기하급수적으로 누적돼서
-  // 사진이 완전히 하얗게(거의 빈 화면처럼) 날아가버림
-  const original = document.createElement('canvas');
-  original.width = w; original.height = h;
-  original.getContext('2d').drawImage(photoCanvas,0,0);
-
-  // soft glow / bokeh filter (뽀샤시 효과)
-  ctx.save();
-  ctx.globalCompositeOperation='screen';
-  ctx.filter='blur(18px)';
-  ctx.globalAlpha=0.5;
-  ctx.drawImage(original,0,0);
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalCompositeOperation='screen';
-  ctx.filter='blur(36px)';
-  ctx.globalAlpha=0.3;
-  ctx.drawImage(original,0,0);
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalCompositeOperation='lighten';
-  const grad = ctx.createRadialGradient(w*0.3,h*0.2,10,w*0.3,h*0.2,w*0.9);
-  grad.addColorStop(0,'rgba(255,255,255,0.7)');
-  grad.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.fillStyle=grad;
-  ctx.fillRect(0,0,w,h);
-  ctx.restore();
-
-  // pink tint (쿨톤으로, 누런 느낌 방지를 위해 overlay 대신 soft-light + 낮은 알파)
-  ctx.save();
-  ctx.globalCompositeOperation='soft-light';
-  ctx.fillStyle='rgba(255,200,225,0.22)';
-  ctx.fillRect(0,0,w,h);
-  ctx.restore();
-
-  // 살짝 노이즈(필름 그레인) 추가
-  addFilmGrain(ctx,w,h,0.06);
 
   // flash effect
   flashEl.style.transition='none';
